@@ -2,6 +2,7 @@
 import base64
 import os
 import sys
+from typing import Optional
 
 import pyperclip
 import requests
@@ -65,14 +66,7 @@ def resolve_deepinfra_token() -> str:
     )
 
 
-def main() -> int:
-    load_dotenv()
-
-    parser = argparse.ArgumentParser(description="Capture screen and OCR via DeepInfra")
-    parser.add_argument("--save", help="Save OCR text to a file path")
-    parser.add_argument("--copy", action="store_true", help="Copy OCR text to clipboard")
-    args = parser.parse_args()
-
+def run_ocr() -> str:
     token = resolve_deepinfra_token()
     model = os.getenv("DEEPINFRA_MODEL", "deepseek-ai/DeepSeek-OCR").strip()
     base_url = os.getenv(
@@ -80,20 +74,32 @@ def main() -> int:
     ).strip()
 
     if not token or token == "your_token_here":
-        print(
-            "Missing DeepInfra token. Set one of: DEEPINFRA_API_TOKEN, DEEPINFRA_API_KEY, DEEPINFRA_TOKEN, DEEPINFRA",
-            file=sys.stderr,
+        raise RuntimeError(
+            "Missing DeepInfra token. Set one of: DEEPINFRA_API_TOKEN, DEEPINFRA_API_KEY, DEEPINFRA_TOKEN, DEEPINFRA"
         )
-        return 1
+
+    png_bytes = capture_primary_screen_png_bytes()
+    data_uri = png_to_data_uri(png_bytes)
+    return deepinfra_ocr(data_uri, token, model, base_url)
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    load_dotenv()
+
+    parser = argparse.ArgumentParser(description="Capture screen and OCR via DeepInfra")
+    parser.add_argument("--save", help="Save OCR text to a file path")
+    parser.add_argument("--copy", action="store_true", help="Copy OCR text to clipboard")
+    args = parser.parse_args(argv)
 
     try:
-        png_bytes = capture_primary_screen_png_bytes()
-        data_uri = png_to_data_uri(png_bytes)
-        text = deepinfra_ocr(data_uri, token, model, base_url)
+        text = run_ocr()
     except requests.HTTPError as exc:
         detail = exc.response.text if exc.response is not None else str(exc)
         print(f"DeepInfra request failed: {detail}", file=sys.stderr)
         return 2
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     except Exception as exc:
         print(f"Failed: {exc}", file=sys.stderr)
         return 3

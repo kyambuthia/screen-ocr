@@ -59,3 +59,20 @@ codex "$txt"
 - Env var `DEEPINFRA_MODEL` can override the default model.
 - Captures the primary monitor by default.
 
+
+## GUI Overlay Mode
+
+Tiny always-on-top overlay with two circular buttons:
+- `Capture`: hide overlay briefly, grab screen, run OCR
+- `Copy`: copy latest OCR result to clipboard
+
+Run:
+
+```powershell
+python src/gui_overlay.py
+```
+
+Notes:
+- Drag the title bar to move the overlay.
+- Press `Esc` or `x` to close.
+- The latest OCR text is shown in the small text area and can be copied.
